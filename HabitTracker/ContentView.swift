@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var authManager: AuthManager // Access auth manager
+    @EnvironmentObject var authManager: AuthManager
     
     var body: some View {
         TabView {
@@ -16,7 +16,7 @@ struct ContentView: View {
                     Image(systemName: "calendar")
                     Text("Calendar")
                 }
-
+            
             FriendsListView()
                 .tabItem {
                     Image(systemName: "person.3")
@@ -36,18 +36,16 @@ struct CalendarView: View {
                 Button(action: {
                     changeDate(by: -1)
                 }) {
-                    Image(systemName: "chevron.left") // Updated icon
+                    Image(systemName: "chevron.left")
                         .font(.title)
                         .padding(.horizontal)
                 }
                 
                 VStack(spacing: 4) {
-                    // Day of the week
                     Text(formattedDayOfWeek)
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    // Date with ordinal suffix
                     Text(formattedDateWithSuffix)
                         .font(.headline)
                         .foregroundColor(.secondary)
@@ -56,25 +54,80 @@ struct CalendarView: View {
                 Button(action: {
                     changeDate(by: 1)
                 }) {
-                    Image(systemName: "chevron.right") // Updated icon
+                    Image(systemName: "chevron.right")
                         .font(.title)
                         .padding(.horizontal)
                 }
             }
+            .padding()
             
-            Spacer()
+            // Scrollable view of hourly slots with a current time indicator
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(0..<24, id: \.self) { hour in
+                            HStack(spacing: 4) {
+                                Text(hourText(for: hour))
+                                    .font(.headline)
+                                    .frame(width: 60, alignment: .leading)
+                                
+                                // Normal hourly line
+                                Rectangle()
+                                    .fill(Color.gray)
+                                    .frame(height: 1)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.trailing, 10)
+                            }
+                            .frame(height: 60)
+                            .id(hour)
+                            
+                            // Check if this is the current hour, then add a time line indicator
+                            if hour == currentHour {
+                                currentTimeIndicator
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .onAppear {
+                        // Scroll to the current hour on appear
+                        proxy.scrollTo(currentHour, anchor: .top)
+                    }
+                    .onChange(of: currentDate) { _ in
+                        // Reset scroll to the current hour when date changes
+                        proxy.scrollTo(currentHour, anchor: .top)
+                    }
+                }
+            }
         }
-        .contentShape(Rectangle()) // Make the entire VStack tappable/swipeable
+        .contentShape(Rectangle())
         .gesture(
             DragGesture()
                 .onEnded { value in
-                    if value.translation.width < 0 { // Swipe left
+                    if value.translation.width < 0 {
                         changeDate(by: 1)
-                    } else if value.translation.width > 0 { // Swipe right
+                    } else if value.translation.width > 0 {
                         changeDate(by: -1)
                     }
                 }
         )
+    }
+    
+    // A view for the current time indicator line
+    private var currentTimeIndicator: some View {
+        HStack(spacing: 4) {
+            // Display current time in red color
+            Text(currentTimeText)
+                .font(.headline)
+                .foregroundColor(.red)
+                .frame(width: 60, alignment: .leading)
+            
+            Rectangle()
+                .fill(Color.red)
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.trailing, 10)
+        }
+        .padding(.bottom, 10) // Optional: Add some space to separate the current time line
     }
     
     // Function to change date by a specified number of days
@@ -87,7 +140,7 @@ struct CalendarView: View {
     // Formatted day of the week (e.g., "THURSDAY")
     private var formattedDayOfWeek: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE" // Full day name
+        formatter.dateFormat = "EEEE"
         return formatter.string(from: currentDate).uppercased()
     }
     
@@ -95,9 +148,30 @@ struct CalendarView: View {
     private var formattedDateWithSuffix: String {
         let day = Calendar.current.component(.day, from: currentDate)
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM" // Month name
+        formatter.dateFormat = "MMMM"
         
         return "\(day.ordinalSuffix()) \(formatter.string(from: currentDate))"
+    }
+    
+    // Function to format the hour in 24-hour format
+    private func hourText(for hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: currentDate) ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    // Function to get the current time in HH:mm format
+    private var currentTimeText: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: currentDate)
+    }
+    
+    // Current hour and time values
+    private var currentHour: Int {
+        let calendar = Calendar.current
+        return calendar.component(.hour, from: currentDate)
     }
 }
 
@@ -115,9 +189,8 @@ extension Int {
     }
 }
 
-
 struct FriendsListView: View {
-    @EnvironmentObject var authManager: AuthManager // Access auth manager for log out
+    @EnvironmentObject var authManager: AuthManager
     
     var body: some View {
         VStack {
@@ -128,7 +201,7 @@ struct FriendsListView: View {
             Spacer()
             
             Button(action: {
-                authManager.logOut() // Trigger log out action
+                authManager.logOut()
             }) {
                 Text("Log Out")
                     .foregroundColor(.red)
